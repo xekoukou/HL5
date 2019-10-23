@@ -34,12 +34,12 @@ private
 infix 1 ⊨_
 
 ⊨_ : HSet {α} → Set α
-⊨_ HA = ∀ w → HA w
+⊨ HA = ∀ w → HA w
 
 ⟨_⟩ₛ : Set α → HSet
 ⟨ A ⟩ₛ w = A
 
-⟨_⟩ : ∀{A : Set α} → A → ⊨ ⟨ A ⟩ₛ
+⟨_⟩ : ∀{A : Set α} → A → ⊨ ⟨ A ⟩ₛ 
 ⟨ a ⟩ w = a
 
 infix 9 !_!ₛ_
@@ -132,6 +132,13 @@ unatv : (! w₁ ! HA) w → HA w₁
 unatv x = x
 
 
+-- postulate
+--   return : ∀ {w S} → S → CO w S
+--   _>>=_    : ∀ {w S S'} → CO w S → (S → CO w S') → CO w S'
+--   ↓    : ∀ {w' w S} → CO w' S → CO w S
+
+
+
 return : ⊨ HA ⇒ ○ HA
 CO.wi (return w x) = w
 CO.eq (return w x) = refl
@@ -142,14 +149,11 @@ CO.wi (bind w x f) = w
 CO.eq (bind w x f) = refl
 CO.v (bind w x f) = CO.v (f (CO.v x))
 
+pure : ∀{w} → (HA ⇒ ○ HA) w
+pure {HA} {w} = return {HA = HA} w
 
-postulate
-  ↓    : ∀ {w' w S} → CO w' S → CO w S
-
--- postulate
---   return : ∀ {w S} → S → CO w S
---   _>>=_    : ∀ {w S S'} → CO w S → (S → CO w S') → CO w S'
---   ↓    : ∀ {w' w S} → CO w' S → CO w S
+_>>=_ : ∀{w} → (○ HA ⇒ (HA ⇒ ○ HB) ⇒ ○ HB) w
+_>>=_ {HA} {HB} {w} = bind {HA = HA} {HB} w
 
 infixl 8 _$ₒ_
 
@@ -159,7 +163,21 @@ _$ₒ_ {HA} {HB} f a = q where
   g _ f = bind {HA = HA} {HB = HB} _ (a _) λ x → return {HA = HB} _ (f x)
   q = bind $ f $ g
 
+ff : ⊨ HA ⇒ HB → ⊨ HA ⇒ ○ HB
+ff {HB = HB} f _ a = return {HA = HB} _ (f _ a)
+
+
+postulate
+  get    : ∀ {w' w S} → CO w' S → CO w S
+
+
+↓ : ⊨ (! w₁ ! ○ HA) ⇒ (! w₂ ! ○ (! w₁ ! HA))
+↓ w = get
+
+
+
 open import Data.Nat
 
-hello : ∀ w → ⊨ ! w ! ○ ⟨ ℕ ⟩
-hello w = ! w ! (bind $ (return $ ⟨ 3 ⟩) $ {!return $ (⟨ _+_ ⟩ $ ⟨ 3 ⟩)!})
+hello : ∀ w → ∀{w1} → (! w ! ○ ⟨ ℕ ⟩) w1
+hello w = ! w ! ?
+-- hello w = ! w ! (bind $ (return $ ⟨ 3 ⟩) $ λ _ x → return _ (x + 2))
