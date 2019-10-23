@@ -4,6 +4,7 @@ open import Data.Product
 open import Data.Sum
 open import Relation.Binary.PropositionalEquality
 open import Data.Empty
+open import Level
 
 postulate
   World : Set
@@ -20,59 +21,65 @@ record CO (w : World) (A : Set) : Set where
 
 private
   variable
+    α β : Level
     w w₁ w₂ : World
 
-HSet : Set₁
-HSet = (w : World) → Set
+HSet : ∀{α} → Set (suc α)
+HSet {α} = (w : World) → Set α
 
 private
   variable
-    HA HB HC : HSet
+    HA HB HC : HSet {α}
+
+infix 1 ⊨_
+
+⊨_ : HSet {α} → Set α
+⊨_ HA = ∀ w → HA w
+
+⟨_⟩ₛ : Set α → HSet
+⟨ A ⟩ₛ w = A
+
+⟨_⟩ : ∀{A : Set α} → A → ⊨ ⟨ A ⟩ₛ
+⟨ a ⟩ w = a
+
+infix 9 !_!ₛ_
+infix 9 !_!_
+
+!_!ₛ_ : World → HSet {α} → HSet
+(! w' !ₛ HA ) w = HA w'
+
+!_!_ : (w : World) → ⊨ HA → ⊨ ! w !ₛ HA
+(! w ! a) w' = a w
 
 ○ : HSet → HSet
 ○ HA w = CO w (HA w)
 
-_at_ : HSet → World → HSet
-(HA at w') w = HA w'
+infixr 8 _⇒_
 
-
-⟨_⟩ : Set → HSet
-⟨ A ⟩ w = A
-
-infixr 9 _⇒_
-
-_⇒_ : HSet → HSet → HSet
+_⇒_ : HSet {α} → HSet {α} → HSet
 (HA ⇒ HB) w = HA w → HB w
 
-∀w : (World → HSet) → HSet
+∀w : (World → HSet {α}) → HSet
 ∀w F w = ∀ w' → (F w') w
 
-∃w : (World → HSet) → HSet
+∃w : (World → HSet {α}) → HSet
 ∃w F w = Σ World (λ w' → F w' w)
 
 infix 10 _∨_
-_∨_ : (HA HB : HSet) → HSet
+_∨_ : (HA HB : HSet {α}) → HSet
 (HA ∨ HB) w = HA w ⊎ HB w
 
-⊞_ : (World → HSet) → HSet
-(⊞ F) = ∀w (λ w' → (F w') at w')
+⊞_ : (World → HSet {α}) → HSet
+(⊞ F) = ∀w (λ w' → ! w' ! (F w'))
 
 infix 11 □_
 
-□_ : HSet → HSet
-(□ HA) = ∀w (λ w' → HA at w')
+□_ : HSet {α} → HSet
+(□ HA) = ∀w (λ w' → ! w' ! HA)
 
 infix 11 ◇_
-◇_ : HSet → HSet
-◇ HA = ∃w (HA at_)
-
-infix 1 ⊨_
-
-⊨_ : HSet → Set
-⊨_ HA = ∀ w → HA w
-
-⟨_⟩ₐ : ∀{A} → A → ⊨ ⟨ A ⟩
-⟨ a ⟩ₐ w = a
+◇_ : HSet {α} → HSet
+◇ HA = ∃w (λ x → !_!_ x HA)
 
 □-refl : ⊨ □ HA ⇒ HA
 □-refl w □a = □a w
@@ -108,7 +115,7 @@ K◇ w □a⇒□b (w' , a) = w' , □a⇒□b w' a
 □5 : ⊨ ◇ HA ⇒ □ ◇ HA
 □5 w ◇a w'' = ◇a
 
-infixl 10 _$_
+infixl 8 _$_
 
 _$_ : ⊨ HA ⇒ HB → ⊨ HA → ⊨ HB
 (f $ b) w = f w (b w)
@@ -121,7 +128,7 @@ casev (inj₁ x) a->c b->c = a->c x
 casev (inj₂ y) a->c b->c = b->c y
 
 
-unatv : (HA at w₁) w → HA w₁
+unatv : (! w₁ ! HA) w → HA w₁
 unatv x = x
 
 
@@ -135,9 +142,6 @@ CO.wi (bind w x f) = w
 CO.eq (bind w x f) = refl
 CO.v (bind w x f) = CO.v (f (CO.v x))
 
-pure : ∀{A} → ⊨ ⟨ A ⟩ ⇒ ○ ⟨ A ⟩
-pure = return
-
 
 postulate
   ↓    : ∀ {w' w S} → CO w' S → CO w S
@@ -147,10 +151,15 @@ postulate
 --   _>>=_    : ∀ {w S S'} → CO w S → (S → CO w S') → CO w S'
 --   ↓    : ∀ {w' w S} → CO w' S → CO w S
 
+infixl 8 _$ₒ_
+
+_$ₒ_ : ⊨ ○ (HA ⇒ HB) → ⊨ ○ HA → ⊨ ○ HB
+_$ₒ_ {HA} {HB} f a = q where
+  g : ⊨ (HA ⇒ HB) ⇒ ○ HB
+  g _ f = bind {HA = HA} {HB = HB} _ (a _) λ x → return {HA = HB} _ (f x)
+  q = bind $ f $ g
 
 open import Data.Nat
 
-hello : ⊨ ○ (⟨ ℕ ⟩ at client)
-hello =  bind $ (return $ ⟨ 3 ⟩ₐ)
-              $ {!⟨!}
-                
+hello : ∀ w → ⊨ ! w ! ○ ⟨ ℕ ⟩
+hello w = ! w ! (bind $ (return $ ⟨ 3 ⟩) $ {!return $ (⟨ _+_ ⟩ $ ⟨ 3 ⟩)!})
