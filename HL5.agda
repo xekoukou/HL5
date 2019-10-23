@@ -69,47 +69,49 @@ infix 11 ◇_
 infix 1 ⊨_
 
 ⊨_ : HSet → Set
-⊨_ HA = ∀{w} → HA w
+⊨_ HA = ∀ w → HA w
 
 ⟨_⟩ₐ : ∀{A} → A → ⊨ ⟨ A ⟩
-⟨ a ⟩ₐ = a
+⟨ a ⟩ₐ w = a
 
 □-refl : ⊨ □ HA ⇒ HA
-□-refl {w = w} □a = □a w
+□-refl w □a = □a w
 
 K : ⊨ □ (HA ⇒ HB) ⇒ □ HA ⇒ HB
-K {w = w} □a⇒b □a = □a⇒b w (□a w)
+K w □a⇒b □a = □a⇒b w (□a w)
 
 ◇v : ⊨ ◇ (HA ∨ HB) ⇒ ◇ HA ∨ ◇ HB 
-◇v (w′ , inj₁ x) = inj₁ (w′ , x)
-◇v (w′ , inj₂ y) = inj₂ (w′ , y)
+◇v w (w′ , inj₁ x) = inj₁ (w′ , x)
+◇v w (w′ , inj₂ y) = inj₂ (w′ , y)
 
 ◇5 : ⊨ ◇ □ HA ⇒ □ HA
-◇5 (w' , □a) = □a
+◇5 w (w' , □a) = □a
 
 curry5 : ⊨ (◇ HA ⇒ □ HB) ⇒ □ (HA ⇒ HB)
-curry5 ◇a⇒□b w' a = ◇a⇒□b (w' , a) w'
+curry5 w ◇a⇒□b w' a = ◇a⇒□b (w' , a) w'
 
 □trans : ⊨ □ HA ⇒ □ □ HA
-□trans □a w' = □a
+□trans w □a w' = □a
 
 ◇refl : ⊨ HA ⇒ ◇ HA
-◇refl {w = w} a = w , a
+◇refl w a = w , a
 
 ◇trans : ⊨ ◇ ◇ HA ⇒ ◇ HA
-◇trans (w' , ◇a) = ◇a
+◇trans w (w' , ◇a) = ◇a
 
 K◇ : ⊨ □ (HA ⇒ HB) ⇒ ◇ HA ⇒ ◇ HB
-K◇ □a⇒□b (w' , a) = w' , □a⇒□b w' a 
+K◇ w □a⇒□b (w' , a) = w' , □a⇒□b w' a 
 
 ◇⊥ : ⊨ ◇ ⟨ ⊥ ⟩ ⇒ ⟨ ⊥ ⟩
-◇⊥ (w' , a) = a
+◇⊥ w (w' , a) = a
 
 □5 : ⊨ ◇ HA ⇒ □ ◇ HA
-□5 ◇a w'' = ◇a
+□5 w ◇a w'' = ◇a
+
+infixl 10 _$_
 
 _$_ : ⊨ HA ⇒ HB → ⊨ HA → ⊨ HB
-(f $ b) {w = w} = f {w = w} (b {w = w})
+(f $ b) w = f w (b w)
 
 casev : (HA ∨ HB) w
         → (HA w → HC w₁)
@@ -124,14 +126,14 @@ unatv x = x
 
 
 return : ⊨ HA ⇒ ○ HA
-CO.wi (return {w = w} x) = w
-CO.eq (return x) = refl
-CO.v (return x) = x
+CO.wi (return w x) = w
+CO.eq (return w x) = refl
+CO.v (return w x) = x
 
-_>>=_ : ⊨ ○ HA ⇒ (HA ⇒ ○ HB) ⇒ ○ HB
-CO.wi (_>>=_ {w = w} x f) = w
-CO.eq (_>>=_ x f) = refl
-CO.v (_>>=_ x f) = CO.v (f (CO.v x))
+bind : ⊨ ○ HA ⇒ (HA ⇒ ○ HB) ⇒ ○ HB
+CO.wi (bind w x f) = w
+CO.eq (bind w x f) = refl
+CO.v (bind w x f) = CO.v (f (CO.v x))
 
 pure : ∀{A} → ⊨ ⟨ A ⟩ ⇒ ○ ⟨ A ⟩
 pure = return
@@ -148,5 +150,7 @@ postulate
 
 open import Data.Nat
 
-hello : ⊨ ○ ⟨ ℕ ⟩ at client
-hello =  {!return {HA = ?} {w = ?} $ ?!} -- return {HA = {!!}} {w = {!!}} {!!} 
+hello : ⊨ ○ (⟨ ℕ ⟩ at client)
+hello =  bind $ (return $ ⟨ 3 ⟩ₐ)
+              $ {!⟨!}
+                
