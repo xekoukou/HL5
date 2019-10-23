@@ -17,10 +17,6 @@ record CO (w : World) (A : Set) : Set where
     eq : wi ≡ w
     v : A
 
-postulate
-  return : ∀ {w S} → S → CO w S
-  _>>=_    : ∀ {w S S'} → CO w S → (S → CO w S') → CO w S'
-  ↓    : ∀ {w' w S} → CO w' S → CO w S
 
 private
   variable
@@ -73,45 +69,84 @@ infix 11 ◇_
 infix 1 ⊨_
 
 ⊨_ : HSet → Set
-⊨_ HA = ∀ w → HA w
+⊨_ HA = ∀{w} → HA w
+
+⟨_⟩ₐ : ∀{A} → A → ⊨ ⟨ A ⟩
+⟨ a ⟩ₐ = a
 
 □-refl : ⊨ □ HA ⇒ HA
-□-refl {HA} w □a = □a w
+□-refl {w = w} □a = □a w
 
 K : ⊨ □ (HA ⇒ HB) ⇒ □ HA ⇒ HB
-K w □a⇒b □a = □a⇒b w (□a w)
+K {w = w} □a⇒b □a = □a⇒b w (□a w)
 
 ◇v : ⊨ ◇ (HA ∨ HB) ⇒ ◇ HA ∨ ◇ HB 
-◇v w (w′ , inj₁ x) = inj₁ (w′ , x)
-◇v w (w′ , inj₂ y) = inj₂ (w′ , y)
+◇v (w′ , inj₁ x) = inj₁ (w′ , x)
+◇v (w′ , inj₂ y) = inj₂ (w′ , y)
 
 ◇5 : ⊨ ◇ □ HA ⇒ □ HA
-◇5 w (w' , □a) = □a
+◇5 (w' , □a) = □a
 
 curry5 : ⊨ (◇ HA ⇒ □ HB) ⇒ □ (HA ⇒ HB)
-curry5 w ◇a⇒□b w' a = ◇a⇒□b (w' , a) w'
+curry5 ◇a⇒□b w' a = ◇a⇒□b (w' , a) w'
 
 □trans : ⊨ □ HA ⇒ □ □ HA
-□trans w □a w' = □a
+□trans □a w' = □a
 
 ◇refl : ⊨ HA ⇒ ◇ HA
-◇refl w a = w , a
+◇refl {w = w} a = w , a
 
 ◇trans : ⊨ ◇ ◇ HA ⇒ ◇ HA
-◇trans w (w' , ◇a) = ◇a
+◇trans (w' , ◇a) = ◇a
 
 K◇ : ⊨ □ (HA ⇒ HB) ⇒ ◇ HA ⇒ ◇ HB
-K◇ w □a⇒□b (w' , a) = w' , □a⇒□b w' a 
+K◇ □a⇒□b (w' , a) = w' , □a⇒□b w' a 
 
 ◇⊥ : ⊨ ◇ ⟨ ⊥ ⟩ ⇒ ⟨ ⊥ ⟩
-◇⊥ w (w' , a) = a
+◇⊥ (w' , a) = a
 
 □5 : ⊨ ◇ HA ⇒ □ ◇ HA
-□5 w ◇a w'' = ◇a
+□5 ◇a w'' = ◇a
+
+_$_ : ⊨ HA ⇒ HB → ⊨ HA → ⊨ HB
+(f $ b) {w = w} = f {w = w} (b {w = w})
+
+casev : (HA ∨ HB) w
+        → (HA w → HC w₁)
+        → (HB w → HC w₁)
+        → HC w₁
+casev (inj₁ x) a->c b->c = a->c x
+casev (inj₂ y) a->c b->c = b->c y
+
+
+unatv : (HA at w₁) w → HA w₁
+unatv x = x
+
+
+return : ⊨ HA ⇒ ○ HA
+CO.wi (return {w = w} x) = w
+CO.eq (return x) = refl
+CO.v (return x) = x
+
+_>>=_ : ⊨ ○ HA ⇒ (HA ⇒ ○ HB) ⇒ ○ HB
+CO.wi (_>>=_ {w = w} x f) = w
+CO.eq (_>>=_ x f) = refl
+CO.v (_>>=_ x f) = CO.v (f (CO.v x))
+
+pure : ∀{A} → ⊨ ⟨ A ⟩ ⇒ ○ ⟨ A ⟩
+pure = return
+
+
+postulate
+  ↓    : ∀ {w' w S} → CO w' S → CO w S
+
+-- postulate
+--   return : ∀ {w S} → S → CO w S
+--   _>>=_    : ∀ {w S S'} → CO w S → (S → CO w S') → CO w S'
+--   ↓    : ∀ {w' w S} → CO w' S → CO w S
 
 
 open import Data.Nat
 
-hello : ⊨ ○ ⟨ ℕ ⟩
-hello w = do
-      return 3
+hello : ⊨ ○ ⟨ ℕ ⟩ at client
+hello =  {!return {HA = ?} {w = ?} $ ?!} -- return {HA = {!!}} {w = {!!}} {!!} 
