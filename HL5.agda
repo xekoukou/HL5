@@ -4,6 +4,7 @@ open import Data.Product
 open import Data.Sum
 open import Relation.Binary.PropositionalEquality
 open import Data.Empty
+open import Function
 open import Level
 
 postulate
@@ -34,22 +35,16 @@ private
 infix 1 ⊨_
 
 ⊨_ : HSet {α} → Set α
-⊨ HA = ∀ w → HA w
+⊨ HA = ∀ {w} → HA w
 
-⟨_⟩ₛ : Set α → HSet
-⟨ A ⟩ₛ w = A
+⟨_⟩ : Set α → HSet {α}
+⟨ A ⟩ w = A
 
-⟨_⟩ : ∀{A : Set α} → A → ⊨ ⟨ A ⟩ₛ 
-⟨ a ⟩ w = a
-
-infix 9 !_!ₛ_
 infix 9 !_!_
 
-!_!ₛ_ : World → HSet {α} → HSet
-(! w' !ₛ HA ) w = HA w'
+!_!_ : World → HSet {α} → HSet
+(! w' ! HA ) w = HA w'
 
-!_!_ : (w : World) → ⊨ HA → ⊨ ! w !ₛ HA
-(! w ! a) w' = a w
 
 ○ : HSet → HSet
 ○ HA w = CO w (HA w)
@@ -82,48 +77,43 @@ infix 11 ◇_
 ◇ HA = ∃w (λ x → !_!_ x HA)
 
 □-refl : ⊨ □ HA ⇒ HA
-□-refl w □a = □a w
+□-refl {w = w} □a = □a w
 
 K : ⊨ □ (HA ⇒ HB) ⇒ □ HA ⇒ HB
-K w □a⇒b □a = □a⇒b w (□a w)
+K {w = w} □a⇒b □a = □a⇒b w (□a w)
 
 ◇v : ⊨ ◇ (HA ∨ HB) ⇒ ◇ HA ∨ ◇ HB 
-◇v w (w′ , inj₁ x) = inj₁ (w′ , x)
-◇v w (w′ , inj₂ y) = inj₂ (w′ , y)
+◇v (w′ , inj₁ x) = inj₁ (w′ , x)
+◇v (w′ , inj₂ y) = inj₂ (w′ , y)
 
 ◇5 : ⊨ ◇ □ HA ⇒ □ HA
-◇5 w (w' , □a) = □a
+◇5 (w' , □a) = □a
 
 curry5 : ⊨ (◇ HA ⇒ □ HB) ⇒ □ (HA ⇒ HB)
-curry5 w ◇a⇒□b w' a = ◇a⇒□b (w' , a) w'
+curry5 ◇a⇒□b w' a = ◇a⇒□b (w' , a) w'
 
 □trans : ⊨ □ HA ⇒ □ □ HA
-□trans w □a w' = □a
+□trans □a w' = □a
 
 ◇refl : ⊨ HA ⇒ ◇ HA
-◇refl w a = w , a
+◇refl {w = w} a = w , a
 
 ◇trans : ⊨ ◇ ◇ HA ⇒ ◇ HA
-◇trans w (w' , ◇a) = ◇a
+◇trans {w = w} (w' , ◇a) = ◇a
 
 K◇ : ⊨ □ (HA ⇒ HB) ⇒ ◇ HA ⇒ ◇ HB
-K◇ w □a⇒□b (w' , a) = w' , □a⇒□b w' a 
+K◇ □a⇒□b (w' , a) = w' , □a⇒□b w' a 
 
 ◇⊥ : ⊨ ◇ ⟨ ⊥ ⟩ ⇒ ⟨ ⊥ ⟩
-◇⊥ w (w' , a) = a
+◇⊥ (w' , a) = a
 
 □5 : ⊨ ◇ HA ⇒ □ ◇ HA
-□5 w ◇a w'' = ◇a
+□5 ◇a w'' = ◇a
 
-infixl 8 _$_
-
-_$_ : ⊨ HA ⇒ HB → ⊨ HA → ⊨ HB
-(f $ b) w = f w (b w)
-
-casev : (HA ∨ HB) w
-        → (HA w → HC w₁)
-        → (HB w → HC w₁)
-        → HC w₁
+casev : ⊨ ! w ! (HA ∨ HB)
+        ⇒ (! w ! HA ⇒ ! w₁ ! HC)
+        ⇒ (! w ! HB ⇒ ! w₁ ! HC)
+        ⇒  ! w₁ ! HC
 casev (inj₁ x) a->c b->c = a->c x
 casev (inj₂ y) a->c b->c = b->c y
 
@@ -132,52 +122,47 @@ unatv : (! w₁ ! HA) w → HA w₁
 unatv x = x
 
 
--- postulate
---   return : ∀ {w S} → S → CO w S
---   _>>=_    : ∀ {w S S'} → CO w S → (S → CO w S') → CO w S'
---   ↓    : ∀ {w' w S} → CO w' S → CO w S
-
-
 
 return : ⊨ HA ⇒ ○ HA
-CO.wi (return w x) = w
-CO.eq (return w x) = refl
-CO.v (return w x) = x
+CO.wi (return {w = w} x) = w
+CO.eq (return x) = refl
+CO.v (return x) = x
 
-bind : ⊨ ○ HA ⇒ (HA ⇒ ○ HB) ⇒ ○ HB
-CO.wi (bind w x f) = w
-CO.eq (bind w x f) = refl
-CO.v (bind w x f) = CO.v (f (CO.v x))
-
-pure : ∀{w} → (HA ⇒ ○ HA) w
-pure {HA} {w} = return {HA = HA} w
-
-_>>=_ : ∀{w} → (○ HA ⇒ (HA ⇒ ○ HB) ⇒ ○ HB) w
-_>>=_ {HA} {HB} {w} = bind {HA = HA} {HB} w
-
-infixl 8 _$ₒ_
-
-_$ₒ_ : ⊨ ○ (HA ⇒ HB) → ⊨ ○ HA → ⊨ ○ HB
-_$ₒ_ {HA} {HB} f a = q where
-  g : ⊨ (HA ⇒ HB) ⇒ ○ HB
-  g _ f = bind {HA = HA} {HB = HB} _ (a _) λ x → return {HA = HB} _ (f x)
-  q = bind $ f $ g
-
-ff : ⊨ HA ⇒ HB → ⊨ HA ⇒ ○ HB
-ff {HB = HB} f _ a = return {HA = HB} _ (f _ a)
+_>>=_ : ⊨ ○ HA ⇒ (HA ⇒ ○ HB) ⇒ ○ HB
+CO.wi (_>>=_ {w = w} x f) = w
+CO.eq (_>>=_ x f) = refl
+CO.v (_>>=_ x f) = CO.v (f (CO.v x))
 
 
 postulate
   get    : ∀ {w' w S} → CO w' S → CO w S
 
 
-↓ : ⊨ (! w₁ ! ○ HA) ⇒ (! w₂ ! ○ (! w₁ ! HA))
-↓ w = get
-
+↓ : ⊨ (! w₁ ! ○ HA) ⇒ ○ (! w₁ ! HA)
+↓ = get
 
 
 open import Data.Nat
 
-hello : ∀ w → ∀{w1} → (! w ! ○ ⟨ ℕ ⟩) w1
-hello w = ! w ! ?
--- hello w = ! w ! (bind $ (return $ ⟨ 3 ⟩) $ λ _ x → return _ (x + 2))
+hello : ⊨ ○ ⟨ ℕ ⟩
+hello = return 3
+
+
+data Piong : Set where
+  ping : Piong
+  pong : Piong
+
+gg : ∀ q → ⊨ ○ ⟨ Piong ⟩ ⇒ ! q ! ○ ⟨ Piong ⟩
+gg q png = do
+                       z ← ↓ png
+                       case z of λ { ping → return pong
+                                   ; pong → return ping}
+
+
+-- The initial ping is sent by the implicit world {w₁}
+rr : ∀ w q → ℕ → ⊨ ○ ⟨ Piong ⟩ ⇒ ! q ! ○ ⟨ Piong ⟩
+rr w q zero png = gg q png
+rr w q (suc n) png = rr w q n (gg w (gg q png))
+
+qq : ∀ w q → ⊨ ! w ! ○ ⟨ Piong ⟩ ⇒ ! q ! ○ ⟨ Piong ⟩
+qq w q = rr w q 5 {w}
