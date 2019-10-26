@@ -4,13 +4,10 @@ open import Data.Product
 open import Data.Sum
 open import Relation.Binary.PropositionalEquality
 open import Data.Empty
-open import Function
 open import Level
 
 postulate
   World : Set
-  server : World
-  client : World
 
 record CO (w : World) (A : Set) : Set where
   field
@@ -142,27 +139,3 @@ postulate
 ↓ = get
 
 
-open import Data.Nat
-
-hello : ⊨ ○ ⟨ ℕ ⟩
-hello = return 3
-
-
-data Piong : Set where
-  ping : Piong
-  pong : Piong
-
-gg : ∀ q → ⊨ ○ ⟨ Piong ⟩ ⇒ ! q ! ○ ⟨ Piong ⟩
-gg q png = do
-                       z ← ↓ png
-                       case z of λ { ping → return pong
-                                   ; pong → return ping}
-
-
--- The initial ping is sent by the implicit world {w₁}
-rr : ∀ w q → ℕ → ⊨ ○ ⟨ Piong ⟩ ⇒ ! q ! ○ ⟨ Piong ⟩
-rr w q zero png = gg q png
-rr w q (suc n) png = rr w q n (gg w (gg q png))
-
-qq : ∀ w q → ⊨ ! w ! ○ ⟨ Piong ⟩ ⇒ ! q ! ○ ⟨ Piong ⟩
-qq w q = rr w q 5 {w}
