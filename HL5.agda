@@ -9,7 +9,13 @@ open import Level
 postulate
   World : Set
 
-record CO (w : World) (A : Set) : Set where
+private
+  variable
+    α β : Level
+    w w₁ w₂ : World
+
+
+record CO (w : World) (A : Set α) : Set α where
   field
 -- This is used so as to keep the World during Compilation, since types are erased. (???)
     wi : World
@@ -17,13 +23,17 @@ record CO (w : World) (A : Set) : Set where
     v : A
 
 
-private
-  variable
-    α β : Level
-    w w₁ w₂ : World
 
 HSet : ∀{α} → Set (suc α)
 HSet {α} = (w : World) → Set α
+
+
+-- ??? 
+infix 1 ⊢_
+
+⊢_ : HSet {α} → Set α
+⊢ HA = ∀ w → HA w
+
 
 private
   variable
@@ -34,6 +44,9 @@ infix 1 ⊨_
 ⊨_ : HSet {α} → Set α
 ⊨ HA = ∀ {w} → HA w
 
+⊢⊨ : ⊨ HA → ⊢ HA
+⊢⊨ x w = x
+
 ⟨_⟩ : Set α → HSet {α}
 ⟨ A ⟩ w = A
 
@@ -43,13 +56,25 @@ infix 9 !_!_
 (! w' ! HA ) w = HA w'
 
 
-○ : HSet → HSet
+○ : HSet {α} → HSet {α}
 ○ HA w = CO w (HA w)
 
 infixr 8 _⇒_
 
-_⇒_ : HSet {α} → HSet {α} → HSet
+_⇒_ : HSet {α} → HSet {β} → HSet
 (HA ⇒ HB) w = HA w → HB w
+
+_⇒ᵈHVal : ⊢ HA ⇒ ⟨ Set α ⟩ → HSet
+_⇒ᵈHVal {HA = HA} f w = (a : HA w) → f w a 
+
+_○⇒ᵈHVal : ⊢ ○ HA ⇒ ○ ⟨ Set α ⟩ → HSet
+_○⇒ᵈHVal {HA = HA} f w = (a : CO w (HA w)) → CO w (CO.v (f w a))
+
+!!_!!_○⇒ᵈHVal : ∀ q → ⊢ ○ HA ⇒ ! q ! ○ ⟨ Set α ⟩ → HSet
+!!_!!_○⇒ᵈHVal {HA = HA} q f w = (a : CO w (HA w)) → CO q (CO.v (f w a))
+
+_⇒ᵈHSet : (⊢ HA ⇒ ⟨ Set α ⟩) → HSet
+_⇒ᵈHSet {HA = HA} {α = α} f w = Σ (HA w) (f w) → Set α
 
 ∀w : (World → HSet {α}) → HSet
 ∀w F w = ∀ w' → (F w') w
@@ -130,12 +155,15 @@ CO.wi (_>>=_ {w = w} x f) = w
 CO.eq (_>>=_ x f) = refl
 CO.v (_>>=_ x f) = CO.v (f (CO.v x))
 
+_>>=2_ : ⊢ ○ HA ⇒ (HA ⇒ ○ HB) ⇒ ○ HB
+CO.wi (_>>=2_ w x f) = w
+CO.eq (_>>=2_ w x f) = refl
+CO.v (_>>=2_ w x f) = CO.v (f (CO.v x))
 
 postulate
-  get    : ∀ {w' w S} → CO w' S → CO w S
+  get    : ∀ {w' w S} → CO {α} w' S → CO w S
 
 
 ↓ : ⊨ (! w₁ ! ○ HA) ⇒ ○ (! w₁ ! HA)
 ↓ = get
-
 
