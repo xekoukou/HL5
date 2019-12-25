@@ -17,14 +17,14 @@ open import Prelude.Product
 
 open import Common
 
-_ifMeta_else_ : {A : Set} → Term → (Meta → List (Arg Term) → TC A) → TC A → TC A
-meta x args ifMeta f else k = f x args
-_ ifMeta _ else k = k
-
-_ifMeta_ : {A : Set} → Term → (Meta → List (Arg Term) → TC A) → TC A
-t ifMeta f = t ifMeta f else (typeError ((strErr "Not possible") ∷ []))
-
 private
+  _ifMeta_else_ : {A : Set} → Term → (Meta → List (Arg Term) → TC A) → TC A → TC A
+  meta x args ifMeta f else k = f x args
+  _ ifMeta _ else k = k
+
+  _ifMeta_ : {A : Set} → Term → (Meta → List (Arg Term) → TC A) → TC A
+  t ifMeta f = t ifMeta f else (typeError ((strErr "Not possible") ∷ []))
+
   -- It finds the first implicit argument that is of type World.
   findWorld : List (Arg Type) → TC (Maybe Nat)
   findWorld [] = return nothing
@@ -32,15 +32,11 @@ private
     = case (primQNameEquality f (quote World)) of
         λ { false → do
                       r ← findWorld ts
-                      case r of
-                        λ { nothing → return nothing
-                          ; (just x) → return (just (suc x))}
+                      return (maybe nothing (λ x → just (suc x)) r)
           ; true → return (just 0)}
   findWorld (_ ∷ ts) = do
                          r ← findWorld ts
-                         case r of
-                           λ { nothing → return nothing
-                             ; (just x) → return (just (suc x))}
+                         return (maybe nothing (λ x → just (suc x)) r)
   
 iw : Term → TC ⊤
 iw hole
