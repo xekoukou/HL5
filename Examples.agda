@@ -1,7 +1,7 @@
-module Examples where
+module Examples2 where
 
 
-open import HL5
+open import HL8
 
 open import Data.Product
 open import Data.Sum
@@ -16,145 +16,65 @@ open import Data.String
 open import Data.Bool
 
 
--- Hello
+-- Hello World.
 
-hello : ⊨ ○ ⟨ String ⟩
-hello = return "hello!!"
+module HelloWorld where
 
-helloName : ∀ w → ⊨ ! w ! ○ ⟨ String ⟩ ⇒ ○ ⟨ String ⟩
-helloName w v
-  = do nm ← ↓ v
-       return ("hello " ++ nm)
+  postulate
+    Bob : World
+    Tom : World
+    Env : World
+  
+  
+  Name : HSet
+  Name = ○ ⟨ String ⟩
+  
+  name : ⟦ Name ⟧
+  name = return "Tom"
+  
+  Hello : ∀ w → HSet
+  Hello w = ! w ! ○ ⟨ String ⟩ → ○ ⟨ String ⟩
+  
+  hello : ∀ w' → ⟦ Hello w' ⟧
+  hello w' v 
+    = do
+         nm ← ↓ v
+         return ("Hello " ++ nm)
+  
+  End : ∀ w → HSet
+  End w = ! w ! ○ ⟨ String ⟩ → ○ ⟨ ⊤ ⟩
+  
+  end : ∀ w → ⟦ End w ⟧
+  end w t = ↓ (t >>= λ _ → return tt)
+  
+  system : ⟦( ! Bob ! (Hello Tom) → ! Tom ! Name → ! Env ! End Tom → ! Env ! ○ ⟨ ⊤ ⟩ )⟧
+  system hnm hl end
+    = end (↓ (hnm hl))
 
+-- I am at your command.
 
--- Ping Pong
-
-data Piong : Set where
-  ping : Piong
-  pong : Piong
-
-pingOnce : ∀ q → ⊨ ○ ⟨ Piong ⟩ ⇒ ! q ! ○ ⟨ Piong ⟩
-pingOnce q png
-  = do
-       z ← ↓ png
-       case z of λ { ping → return pong
-                   ; pong → return ping}
-
-
--- The initial ping is sent by the implicit world {w₁}
-gpingN : ∀ w q → ℕ → ⊨ ○ ⟨ Piong ⟩ ⇒ ! q ! ○ ⟨ Piong ⟩
-gpingN w q zero png = pingOnce q png
-gpingN w q (suc n) png = gpingN w q n (pingOnce w (pingOnce q png))
-
-pingN : ∀ w q → ⊨ ! w ! ○ ⟨ Piong ⟩ ⇒ ! q ! ○ ⟨ Piong ⟩
-pingN w q = gpingN w q 5 {w}
+open import Prelude.Nat
 
 postulate
-  Env : World
+  Client : World
+  Server : World
 
+data What : Set where
+  aNum    : What
+  aString : What
 
-ee : ⊢ ⟨ ℕ ⟩ ⇒ ⟨ Set ⟩
-ee w zero = String
-ee w (suc x) = ℕ
+GiveMeS : ∀ w → HSet
+GiveMeS w = ! w ! ⟨ What ⟩ → ○ ⟨ Set ⟩
 
-gg : ⊢ ee ⇒ᵈHSet
-gg w (ℕ.zero , snd) = String
-gg w (ℕ.suc e , ℕ.zero) = String
-gg w (ℕ.suc e , ℕ.suc snd) = ℕ
+giveMeS : ∀ w → ⟦ GiveMeS w ⟧
+giveMeS w q
+  = do
+      case q of
+        λ { aNum → return Nat
+          ; aString → return String}
 
-nn : ⊢ gg ⇒ᵈHSet
-nn = ⊢⊨ λ { ((ℕ.zero , snd₁) , snd) → {!!} ; ((ℕ.suc fst , snd₁) , snd) → {!!}}
+GiveMe : ∀ w → HSet
+GiveMe w = (what : ! w ! ○ ⟨ What ⟩) → ○ₛ (↓ what >>= giveMeS w)
 
-dd : ⊨ gg ⇒ᵈHVal
-dd (ℕ.zero , snd) = "Ahoy"
-dd (ℕ.suc fst , ℕ.zero) = "ole"
-dd (ℕ.suc fst , ℕ.suc snd) = 3
-
-
--- Dependent types
-
-module _ where
-
-  open import Data.Bool
-
-  F : Bool → Set
-  F false = String
-  F true = ℕ
-
-  d : (b : Bool) → F b
-  d false = "Aha"
-  d true = 3
-
-  ll : ∀ w → ⊨ ○ ⟨ Bool ⟩ ⇒ ! w ! ○ ⟨ Set ⟩
-  ll w v = do
-             b ← ↓ v
-             return (F b)
-
-private
-  variable
-    α β : Level
-
-
-  ff : Bool → ⊢ ⟨ Set ⟩
-  ff = λ { false → ⟨ String ⟩ ; true → ⟨ ℕ ⟩ }
-
-  mm : ∀ w → ⊢ ⟨ Bool ⟩ ⇒ ⟨ Set ⟩
-  mm w w₁ b = (! w ! ○ (case b of ff )) w₁
-               
-
---  rr : ∀ w → ⊨ (mm w ○⇒ᵈHVal)
---  rr w v = _>>=_ {HB = λ _ → ff (CO.v v) w} (↓ v) λ { false → {!!}
---                                                    ; true → {!!}} where
-
-
-----------
-
-
-  dsd : ∀ {w} → ⊢ ○ ⟨ Bool ⟩ ⇒ ! w ! ○ ⟨ Set ⟩
-  dsd = ⊢⊨ λ v → do
-                    b ← ↓ v
-                    case b of λ { false → return String
-                                ; true → return ℕ}
-
-
-  private
-    variable
-      HA HB HC : HSet {α}
-
-
-  sds : (S : ⊢ ○ ⟨ Set ⟩) → HSet
-  sds S w = CO.v (S w)
-
-  dwd : ⊢ ○ ⟨ Set ⟩ ⇒ ⟨ Set ⟩
-  dwd w x = CO.v x
--- 
---   qqw : ∀ w → ⊨ !! w !! dsd ○⇒ᵈHVal
---   qqw w v with get {w = w} v
---   ... | q = do
---               s ← q
---               case s of λ { false → {!!}
---                           ; true → {!!}}
--- 
-  -- qq : (S : ⊢ ○ ⟨ Set ⟩) → ⊨ sds S
-  -- qq = {!!}
-  
-  -- vv : ∀ w → (ff : ⊢ ○ ⟨ Bool ⟩ ⇒ ! w ! ○ ⟨ Set ⟩) → {!!}
-  -- vv w ff w₁ = (v : (○ ⟨ Bool ⟩) w₁) → {!!}
-
-
-_>>=ᵈ_ : (f : ⊢ HA ⇒ ○ ⟨ Set ⟩ ) → ⊨ (HA ⇒ ○ HB) ⇒ ○ HA ⇒ ○ HB
-_>>=ᵈ_ = {!!}
-
-VSet : Set₁
-VSet = World → Set
-
-a : {VS : VSet} → ∀ w → VS w → ⊤
-a = {!!}
-
-b : {VS : VSet} → ∀ w → VS w → ⊤
-b = {!!}
-
-
-
-_>>=a_ : ⊨ ○ HA ⇒ (HA ⇒ ○ HB) ⇒ ○ HB
-_>>=a_ = _>>=_
+giveMe : ∀ w → ⟦ GiveMe w ⟧
+giveMe w v = (↓ v) >>=2 {!!}
