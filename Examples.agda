@@ -1,7 +1,7 @@
-module Examples2 where
+module Examples where
 
 
-open import HL8
+open import HL5
 
 open import Data.Product
 open import Data.Sum
@@ -76,5 +76,5 @@ giveMeS w q
 GiveMe : ∀ w → HSet
 GiveMe w = (what : ! w ! ○ ⟨ What ⟩) → ○ₛ (↓ what >>= giveMeS w)
 
-giveMe : ∀ w → ⟦ GiveMe w ⟧
-giveMe w v = (↓ v) >>=2 {!!}
+-- giveMe : ∀ w → ⟦ GiveMe w ⟧
+-- giveMe w v = (↓ v) >>=2 {!!}
