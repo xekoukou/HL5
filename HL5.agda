@@ -21,7 +21,6 @@ private
   variable
     α β : L.Level
 
-----------------------------------------------
 
 -- Set parametrized by the world it lives in.
 HSet : ∀{α} → Set (L.suc α)
@@ -29,6 +28,9 @@ HSet {α} = {@(tactic iw) 〈w〉 : World} → Set α
 
 ⟦_⟧ : HSet {α} → Set α
 ⟦ HA ⟧ = {@(tactic iw) 〈w〉 : World} → HA
+
+⟦_⟧′ : HSet {α} → Set α
+⟦ HA ⟧′ = {〈w〉 : World} → HA
 
 infix 9 !_!_
   
@@ -38,15 +40,14 @@ infix 9 !_!_
 ⟨_⟩ : Set α → HSet {α}
 ⟨ A ⟩ = A
 
--- It would be nice if these were abstract
 ○ : HSet {α} → HSet {α}
 ○ HA {w} = I.CO w (HA {w})
 
-return : ∀{HA : HSet {α}} → {w : World} → HA → ○ HA
+return : ∀{@(tactic ihs) HA : HSet {α}} → ⟦( HA → ○ HA )⟧′
 return {HA = HA} {w} ha = I.return {IA = λ w → HA {w}} w ha
 
-_>>=_ : {@(tactic ihs) HA : HSet {α}} {HB : HSet {β}} → {w : World}
-        → ○ HA → (HA → ○ HB) → ○ HB
+_>>=_ : {@(tactic ihs) HA : HSet {α}} {HB : HSet {β}}
+        → ⟦( ○ HA → (HA → ○ HB) → ○ HB )⟧′
 _>>=_ {HA = HA} {HB} {w} ha f = I.bind {IA = λ w → HA {w}} {IB = λ w → HB {w}} w ha f
 
 ↓ : ∀{@(tactic ihs) HA : HSet {α}} → {w₁ w : World} → ! w₁ ! ○ HA → ○ (! w₁ ! HA)
@@ -75,7 +76,10 @@ infix 11 ◇_
 K : ∀{HA HB : HSet {α}} → {w : World} → □ (λ {_} → HA → HB) → □ HA → HB
 K {w = w} □f □a = □f w (□a w)
 
- 
+-----------------------
+
+-- ee : (HA : HSet {α}) → ⟦ ○ HA ⟧
+-- ee HA = return {!!}
 
 
 f : {w₁ w : World} → ! w₁ ! ⟨ Bool ⟩ → ○ ⟨ Set ⟩
@@ -85,9 +89,9 @@ f true  = return ⊤
 d : {w₁ w : World} → (ha : (! w₁ ! ○ ⟨ Bool ⟩)) → ○ₛ (↓ ha >>= f {w₁})
 d {w₁ = w₁} ha = _>>=2_ (↓ ha) λ { false → return true ; true → return tt}
 
--- ↓¡_¡ : ∀{HA : HSet {α}} → (w₂ : World) → {w₁ w : World} → ! w₁ ! ○ HA → ! w₂ ! ○ (! w₁ ! HA)
--- ↓¡ w ¡ = ↓ {HA = {!!}}
+↓¡_¡ : ∀{HA : HSet {α}} → (w₂ : World) → {w₁ w : World} → ! w₁ ! ○ HA → ! w₂ ! ○ (! w₁ ! HA)
+↓¡ w ¡ = {!↓!}
 
--- -- ¡_¡ : ∀{HA : HSet {α}} → (w₁ : World) → {w : World} → HA → ! w₁ ! HA
--- -- ¡ w ¡ a = {!a!}
+-- ¡_¡ : ∀{HA : HSet {α}} → (w₁ : World) → {w : World} → HA → ! w₁ ! HA
+-- ¡ w ¡ a = {!a!}
 
