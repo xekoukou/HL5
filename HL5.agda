@@ -90,7 +90,7 @@ d : {w₁ w : World} → (ha : (! w₁ ! ○ ⟨ Bool ⟩)) → ○ₛ (↓ ha >
 d {w₁ = w₁} ha = _>>=2_ (↓ ha) λ { false → return true ; true → return tt}
 
 ↓¡_¡ : ∀{HA : HSet {α}} → (w₂ : World) → {w₁ w : World} → ! w₁ ! ○ HA → ! w₂ ! ○ (! w₁ ! HA)
-↓¡ w ¡ = {!!}
+↓¡ w ¡ = ↓
 
 -- ¡_¡ : ∀{HA : HSet {α}} → (w₁ : World) → {w : World} → HA → ! w₁ ! HA
 -- ¡ w ¡ a = {!a!}
