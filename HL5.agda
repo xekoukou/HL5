@@ -56,7 +56,7 @@ _>>=_ {HA = HA} {HB} {w} ha f = I.bind {IA = λ w → HA {w}} {IB = λ w → HB 
 
 _>>=2_ : ∀{α} → {HA : HSet {α}} → {w : World} → {HP : {w' : World} → HA → ○ ⟨ Set α ⟩}
          → (ha : ○ HA) → ((a : HA) → ○ₛ (HP a)) → ○ₛ {α = α} (_>>=_ ha HP)
-_>>=2_ {HA = HA} {w} {HP} x f = {!!} -- I.bind2 {IA = λ w'' → HA {w''}} w {IP = λ w'' → HP {w''}} x f
+_>>=2_ {HA = HA} {w} {HP} x f = I.bind2 {IA = λ w'' → HA {w''}} w {IP = λ w'' → HP {w''}} x f
 
 
 infix 11 □_
@@ -76,20 +76,22 @@ K {w = w} □f □a = □f w (□a w)
 
 -----------------------
 
--- ee : (HA : HSet {α}) → ⟦ ○ HA ⟧
--- ee HA = return {!!}
+ee : ∀{α} → (HA : HSet {α}) → ⟦ ○ HA ⟧
+ee HA = return {!!}
 
 
 f : {w₁ w : World} → ! w₁ ! ⟨ Bool ⟩ → ○ ⟨ Set ⟩
 f false = return Bool
 f true  = return ⊤
 
--- d : {w₁ w : World} → (ha : (! w₁ ! ○ ⟨ Bool ⟩)) → ○ₛ (↓ ha >>= f {w₁})
--- d {w₁ = w₁} ha = _>>=2_ (↓ ha) λ { false → return true ; true → return tt}
 
--- ↓¡_¡ : ∀{HA : HSet {α}} → (w₂ : World) → {w₁ w : World} → ! w₁ ! ○ HA → ! w₂ ! ○ (! w₁ ! HA)
--- ↓¡ w ¡ = ↓
+↓¡_¡ : ∀{α} → ∀{HA : HSet {α}} → (w₂ : World) → {w₁ w : World} → ! w₁ ! ○ HA → ! w₂ ! ○ (! w₁ ! HA)
+↓¡ w ¡ = ↓
 
--- -- ¡_¡ : ∀{HA : HSet {α}} → (w₁ : World) → {w : World} → HA → ! w₁ ! HA
--- -- ¡ w ¡ a = {!a!}
+
+d : {w₁ w : World} → (ha : (! w₁ ! ○ ⟨ Bool ⟩)) → ○ₛ (↓ ha >>= f {w₁})
+d {w₁ = w₁} ha = _>>=2_ (↓ ha) λ { false → return true ; true → return tt}
+
+-- ¡_¡ : ∀{HA : HSet {α}} → (w₁ : World) → {w : World} → HA → ! w₁ ! HA
+-- ¡ w ¡ a = {!a!}
 

@@ -77,4 +77,4 @@ GiveMe : ∀ w → HSet
 GiveMe w = (what : ! w ! ○ ⟨ What ⟩) → ○ₛ (↓ what >>= giveMeS w)
 
 giveMe : ∀ w → ⟦ GiveMe w ⟧
-giveMe w v = {!!} -- _>>=2_ {HP = {!!}} (↓ v) {!!}
+giveMe w v = _>>=2_ (↓ v) {!!}
