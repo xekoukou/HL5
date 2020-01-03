@@ -102,15 +102,15 @@ private
   showCtx [] = []
   showCtx (arg _ x ∷ xs) = termErr x ∷ strErr "\n--------\n" ∷ showCtx xs
 
-  h2 : List (Closure Constraint) → (Constraint → TC (Maybe Term)) → TC (Maybe Term)
-  h2 [] f = return nothing
+  h2 : List (Closure Constraint) → (Constraint → TC Bool) → TC ⊤
+  h2 [] f = return tt
   h2 (closure ctx x ∷ xs) f = do
     v ← inContext ctx (f x)
     case v of
-      λ { nothing → h2 xs f
-        ; (just t) → return (just t)}
+      λ { false → h2 xs f
+        ; true → return tt}
 
-  h1 : Meta → Constraint → TC (Maybe Term)
+  h1 : Meta → Constraint → TC Bool
   h1 m (valueCmp _ _ (meta _ _) (meta _ _))
     = typeError (strErr "HL5 Internal Error. Please report this." ∷ [])
                                                -- Is this even possible ?
@@ -178,10 +178,7 @@ ihs hole =
        λ { nothing → return tt -- The meta has already being solved.
          ; (just m) → do
                          cs ← getConstraintsMentioning (m ∷ [])
-                         r ← h2 cs (h1 m)
-                         case r of
-                           λ { nothing → return tt -- The meta might have already being solved.
-                             ; (just x) → unify hole x}
+                         h2 cs (h1 m)
                          }
 
 

@@ -51,10 +51,6 @@ _>>=_ {HA = HA} {HB} {w} ha f = I.bind {IA = λ w → HA {w}} {IB = λ w → HB 
 ↓ : ∀{α} → ∀{@(tactic ihs) HA : HSet {α}} → {w₁ w : World} → ! w₁ ! ○ HA → ○ (! w₁ ! HA)
 ↓ {w₁ = w₁} {w} ha = I.get w₁ w ha
 
-↓¡_¡ : ∀{α} → ∀{HA : HSet {α}} → (w₂ : World) → {w₁ w : World} → ! w₁ ! ○ HA → ! w₂ ! ○ (! w₁ ! HA)
-↓¡ w ¡ = ↓
-
-
 ○ₛ : ∀{α} → {@(tactic iw) w : World} → ○ ⟨ Set α ⟩ → Set α
 ○ₛ {w = w} Q = ○ (λ {w'} → I.CO.v Q) {w}
 
