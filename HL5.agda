@@ -88,9 +88,13 @@ f : {w₁ w : World} → ! w₁ ! ⟨ Bool ⟩ → ○ ⟨ Set ⟩
 f false = return Bool
 f true  = return ⊤
 
--- d : {w₁ w : World} → (ha : (! w₁ ! ○ ⟨ Bool ⟩)) → ○ₛ (↓ ha >>= f {w₁})
--- d {w₁ = w₁} ha = _>>=2_ (↓ ha) λ { false → return true ; true → return tt}
 
+↓¡_¡ : ∀{α} → ∀{HA : HSet {α}} → (w₂ : World) → {w₁ w : World} → ! w₁ ! ○ HA → ! w₂ ! ○ (! w₁ ! HA)
+↓¡ w ¡ = ↓
+
+
+d : {w₁ w : World} → (ha : (! w₁ ! ○ ⟨ Bool ⟩)) → ○ₛ (↓ ha >>= f {w₁})
+d {w₁ = w₁} ha = _>>=2_ (↓ ha) λ { false → return true ; true → return tt}
 
 -- ¡_¡ : ∀{HA : HSet {α}} → (w₁ : World) → {w : World} → HA → ! w₁ ! HA
 -- ¡ w ¡ a = {!a!}

@@ -105,9 +105,7 @@ private
   h2 : List (Closure Constraint) → (Constraint → TC (Maybe Term)) → TC (Maybe Term)
   h2 [] f = return nothing
   h2 (closure ctx x ∷ xs) f = do
---    ctx <- getContext
-    inContext ctx (typeError {A = ⊤} (showCtx ctx))
-    v ← f x 
+    v ← inContext ctx (f x)
     case v of
       λ { nothing → h2 xs f
         ; (just t) → return (just t)}
@@ -118,30 +116,50 @@ private
                                                -- Is this even possible ?
                                                -- I think this constraint would have been immediately removed.
   h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t) with (primMetaEquality m m')
-  ... | false = return nothing
-  h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t@(var x args@(y ∷ ys))) | true
-    = return (just (var x (take (length ys) args)))
-  h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t@(con c args@(y ∷ ys))) | true
-    = return (just (con c (take (length args - 1) args)))
-  h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t@(def f args@(y ∷ ys))) | true
-    = return (just (def f (take (length args - 1) args)))
-  h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t@(pat-lam cs args@(y ∷ ys))) | true
-    = return (just (pat-lam cs (take (length args - 1) args)))
-  h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t) | true
-    = return (just (lam hidden (abs "wₘ" (h4 t 0))))
-  h1 m (valueCmp _ _ t (meta m' (_ ∷ _))) with (primMetaEquality m m')
-  ... | false = return nothing
-  h1 m (valueCmp _ _ t@(var x args@(y ∷ ys)) (meta m' (_ ∷ _))) | true
-    = return (just (var x (take (length args - 1) args)))
-  h1 m (valueCmp _ _ t@(con c args@(y ∷ ys)) (meta m' (_ ∷ _))) | true
-    = return (just (con c (take (length args - 1) args)))
-  h1 m (valueCmp _ _ t@(def f args@(y ∷ ys)) (meta m' (_ ∷ _))) | true
-    = return (just (def f (take (length args - 1) args)))
-  h1 m (valueCmp _ _ t@(pat-lam cs args@(y ∷ ys)) (meta m' (_ ∷ _))) | true
-    = return (just (pat-lam cs (take (length args - 1) args)))
-  h1 m (valueCmp _ _ t (meta m' (_ ∷ _))) | true
-    = return (just (lam hidden (abs "wₘ" (h4 t 0))))
-  h1 _ unsupported = return nothing
+  ... | false = return false
+  h1 m (valueCmp _ _ (meta m' margs@(_ ∷ _)) t@(var x args@(_ ∷ _))) | true
+    = do 
+         unify (meta m' (take (length margs - 1) margs)) (var x (take (length args - 1) args))
+         return true
+  h1 m (valueCmp _ _ (meta m' margs@(_ ∷ _)) t@(con c args@(y ∷ ys))) | true
+    = do
+         unify (meta m' (take (length margs - 1) margs)) (con c (take (length args - 1) args))
+         return true
+  h1 m (valueCmp _ _ (meta m' margs@(_ ∷ _)) t@(def f args@(y ∷ ys))) | true
+    = do
+         unify (meta m' (take (length margs - 1) margs)) (def f (take (length args - 1) args))
+         return true
+  h1 m (valueCmp _ _ (meta m' margs@(_ ∷ _)) t@(pat-lam cs args@(y ∷ ys))) | true
+    = do
+         unify (meta m' (take (length margs - 1) margs)) (pat-lam cs (take (length args - 1) args))
+         return true
+  h1 m (valueCmp _ _ (meta m' margs@(_ ∷ _)) t) | true
+    = do
+         unify (meta m' (take (length margs - 1) margs)) (lam hidden (abs "wₘ" (h4 t 0)))
+         return true
+  h1 m (valueCmp _ _ t (meta m' margs@(_ ∷ _))) with (primMetaEquality m m')
+  ... | false = return false
+  h1 m (valueCmp _ _ t@(var x args@(y ∷ ys)) (meta m' margs@(_ ∷ _))) | true
+    = do
+         unify (meta m' (take (length margs - 1) margs)) (var x (take (length args - 1) args))
+         return true
+  h1 m (valueCmp _ _ t@(con c args@(y ∷ ys)) (meta m' margs@(_ ∷ _))) | true
+    = do
+         unify (meta m' (take (length margs - 1) margs)) (con c (take (length args - 1) args))
+         return true
+  h1 m (valueCmp _ _ t@(def f args@(y ∷ ys)) (meta m' margs@(_ ∷ _))) | true
+    = do
+         unify (meta m' (take (length margs - 1) margs)) (def f (take (length args - 1) args))
+         return true
+  h1 m (valueCmp _ _ t@(pat-lam cs args@(y ∷ ys)) (meta m' margs@(_ ∷ _))) | true
+    = do
+         unify (meta m' (take (length margs - 1) margs)) (pat-lam cs (take (length args - 1) args))
+         return true
+  h1 m (valueCmp _ _ t (meta m' margs@(_ ∷ _))) | true
+    = do
+         unify (meta m' (take (length margs - 1) margs)) (lam hidden (abs "wₘ" (h4 t 0)))
+         return true
+  h1 _ unsupported = return false
   h1 _ _ = typeError (strErr "Invalid constraint." ∷ []) 
 
   h3 : Term → TC (Maybe Meta)
@@ -154,7 +172,7 @@ ihs hole =
   do
      delayMacro
      typ ← inferType hole
-     nhole ← checkType hole typ -- We use this to have agda introduce a lambda with a hidden argument.
+     nhole ← checkType hole typ
      tm ← h3 nhole
      case tm of
        λ { nothing → return tt -- The meta has already being solved.
@@ -167,64 +185,73 @@ ihs hole =
                          }
 
 
--- ---------------------------------------------
--- -- ifs
+---------------------------------------------
+-- ifs
 
--- private
---   h11 : Term → Maybe (Bool × Meta)
---   h11 (lam _ (abs _ (lam _ (abs _ (con _ (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ (arg _ (meta m _)) ∷ [])))))) = just (true , m)
---   h11 (lam _ (abs _ (con _ (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ (arg _ (meta m _)) ∷ [])))) = just (false , m)
---   h11 v = nothing
+private
 
---   h12 : Constraint → TC (Maybe Term)
---   h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x []) ∷ [])))
---     = return (just (var x []))
---   h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c []) ∷ [])))
---     = return (just (con c []))
---   h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f []) ∷ [])))
---     = return (just (def f []))
---   h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs []) ∷ [])))
---     = return (just (pat-lam cs []))
---   h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x []) ∷ [])) (meta _ _))
---     = return (just (var x []))
---   h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c []) ∷ [])) (meta _ _))
---     = return (just (con c []))
---   h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f []) ∷ [])) (meta _ _))
---     = return (just (def f []))
---   h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs []) ∷ [])) (meta _ _))
---     = return (just (pat-lam cs []))
---   h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x args@(y ∷ ys)) ∷ [])))
---     = return (just (var x (take (length args - 2) args)))
---   h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c args@(y ∷ ys)) ∷ [])))
---     = return (just (con c (take (length args - 2) args)))
---   h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f args@(y ∷ ys)) ∷ [])))
---     = return (just (def f (take (length args - 2) args)))
---   h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs args@(y ∷ ys)) ∷ [])))
---     = return (just (pat-lam cs (take (length args - 2) args)))
---   h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x args@(y ∷ ys)) ∷ [])) (meta _ _))
---     = return (just (var x (take (length args - 2) args)))
---   h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c args@(y ∷ ys)) ∷ [])) (meta _ _))
---     = return (just (con c (take (length args - 2) args)))
---   h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f args@(y ∷ ys)) ∷ [])) (meta _ _))
---     = return (just (def f (take (length args - 2) args)))
---   h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs args@(y ∷ ys)) ∷ [])) (meta _ _))
---     = return (just (pat-lam cs (take (length args - 2) args)))
---   h12 _ = return nothing
+  h13 : List (Closure Constraint) → (Constraint → TC (Maybe Term)) → TC (Maybe Term)
+  h13 [] f = return nothing 
+  h13 (closure _ x ∷ xs) f = do
+      v ← f x
+      case v of
+        λ { nothing → h13 xs f
+          ; (just t) → return (just t) }
 
--- ifs : Term → TC ⊤
--- ifs hole =
---   do
---      delayMacro
---      typ ← inferType hole
---      nhole ← checkType hole typ
---      case (h11 nhole) of
---       λ { nothing → do
---                        unify hole nhole -- ???
---         ; (just m) →
---              do
---                cs ← getConstraintsMentioning (snd m ∷ [])
---                mt ← h2 cs h12
---                case mt of
---                  λ { nothing → return tt -- The meta has already being solved,
---                                          -- (probably because of an old constraint.)
---                    ; (just t) → unify hole t}}
+
+  h11 : Term → Maybe Meta
+  h11 (lam _ (abs _ (lam _ (abs _ (con _ (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ (arg _ (meta m _)) ∷ [])))))) = just m
+  h11 v = nothing
+
+  h12 : Constraint → TC (Maybe Term)
+  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x []) ∷ [])))
+    = return (just (var x []))
+  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c []) ∷ [])))
+    = return (just (con c []))
+  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f []) ∷ [])))
+    = return (just (def f []))
+  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs []) ∷ [])))
+    = return (just (pat-lam cs []))
+  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x []) ∷ [])) (meta _ _))
+    = return (just (var x []))
+  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c []) ∷ [])) (meta _ _))
+    = return (just (con c []))
+  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f []) ∷ [])) (meta _ _))
+    = return (just (def f []))
+  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs []) ∷ [])) (meta _ _))
+    = return (just (pat-lam cs []))
+  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x args@(y ∷ ys)) ∷ [])))
+    = return (just (var x (take (length args - 2) args)))
+  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c args@(y ∷ ys)) ∷ [])))
+    = return (just (con c (take (length args - 2) args)))
+  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f args@(y ∷ ys)) ∷ [])))
+    = return (just (def f (take (length args - 2) args)))
+  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs args@(y ∷ ys)) ∷ [])))
+    = return (just (pat-lam cs (take (length args - 2) args)))
+  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x args@(y ∷ ys)) ∷ [])) (meta _ _))
+    = return (just (var x (take (length args - 2) args)))
+  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c args@(y ∷ ys)) ∷ [])) (meta _ _))
+    = return (just (con c (take (length args - 2) args)))
+  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f args@(y ∷ ys)) ∷ [])) (meta _ _))
+    = return (just (def f (take (length args - 2) args)))
+  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs args@(y ∷ ys)) ∷ [])) (meta _ _))
+    = return (just (pat-lam cs (take (length args - 2) args)))
+  h12 _ = return nothing
+
+ifs : Term → TC ⊤
+ifs hole =
+  do
+     delayMacro
+     typ ← inferType hole
+     nhole ← checkType hole typ
+     case (h11 nhole) of
+      λ { nothing → do
+                       unify hole nhole -- ???
+        ; (just m) →
+             do
+               cs ← getConstraintsMentioning (m ∷ [])
+               mt ← h13 cs h12
+               case mt of
+                 λ { nothing → return tt -- The meta has already being solved,
+                                         -- (probably because of an old constraint.)
+                   ; (just t) → unify hole t}}
