@@ -102,88 +102,50 @@ private
   showCtx [] = []
   showCtx (arg _ x ∷ xs) = termErr x ∷ strErr "\n--------\n" ∷ showCtx xs
 
-  h2 : List (Closure Constraint) → (Constraint → TC Bool) → TC ⊤
-  h2 [] f = return tt
+  h2 : List (Closure Constraint) → (Constraint → TC (Maybe Term)) → TC (Maybe Term)
+  h2 [] f = return nothing
   h2 (closure ctx x ∷ xs) f = do
 --    ctx <- getContext
---    (typeError {A = Bool} (showCtx ctx))
-    v ← f x -- v ← inContext ctx (f x) -- (typeError {A = Bool} (showCtx ctx)) --  (f x)
+    inContext ctx (typeError {A = ⊤} (showCtx ctx))
+    v ← f x 
     case v of
-      λ { false → h2 xs f
-        ; true → return tt}
+      λ { nothing → h2 xs f
+        ; (just t) → return (just t)}
 
-  h1 : Meta → Constraint → TC Bool
+  h1 : Meta → Constraint → TC (Maybe Term)
   h1 m (valueCmp _ _ (meta _ _) (meta _ _))
     = typeError (strErr "HL5 Internal Error. Please report this." ∷ [])
                                                -- Is this even possible ?
                                                -- I think this constraint would have been immediately removed.
   h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t) with (primMetaEquality m m')
-  ... | false = return false
-  h1 m (valueCmp _ _ (meta m' margs@(arg u l ∷ arg _ g ∷ arg _ (var s []) ∷ arg _ (var q []) ∷ [])) t@(var x args@(y ∷ ys))) | true
-    = do
---         typ <- inferType (var x [])
---         nmeta <- checkType (meta m' []) typ
-         typeError {A = ⊤} (strErr (show q) ∷ [])
---         typeError {A = ⊤} (strErr (show x) ∷ [])
---         typeError {A = ⊤} (termErr (var x (take (length args - 2) args)) ∷ strErr "a1" ∷ [])
---         typeError {A = ⊤} (termErr (var x (take (length args - 1) args)) ∷ [])
---         unify nmeta (var x [])
---         unify (meta m' []) nmeta
---         typeError {A = ⊤} (termErr (var x (take (length args - 2) args)) ∷ strErr "a1" ∷ [])
-         return true
+  ... | false = return nothing
+  h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t@(var x args@(y ∷ ys))) | true
+    = return (just (var x (take (length ys) args)))
   h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t@(con c args@(y ∷ ys))) | true
-    = do
-         typeError {A = ⊤} (termErr t ∷ strErr "a2" ∷ [])
-         unify (meta m' []) (con c (take (length args - 2) args))
-         return true
+    = return (just (con c (take (length args - 1) args)))
   h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t@(def f args@(y ∷ ys))) | true
-    = do
-         typeError {A = ⊤} (termErr t ∷ strErr "a3" ∷ [])
-         unify (meta m' []) (def f (take (length args - 2) args))
-         return true
+    = return (just (def f (take (length args - 1) args)))
   h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t@(pat-lam cs args@(y ∷ ys))) | true
-    = do
-         typeError {A = ⊤} (termErr t ∷ strErr "a4" ∷ [])
-         unify (meta m' []) (pat-lam cs (take (length args - 2) args))
-         return true
+    = return (just (pat-lam cs (take (length args - 1) args)))
   h1 m (valueCmp _ _ (meta m' (_ ∷ _)) t) | true
-    = do
-         typeError {A = ⊤} (termErr (lam hidden (abs "wₘ" (h4 t 0))) ∷ [])
-         unify (meta m' []) (lam hidden (abs "wₘ" (h4 t 0)))
-         return true
+    = return (just (lam hidden (abs "wₘ" (h4 t 0))))
   h1 m (valueCmp _ _ t (meta m' (_ ∷ _))) with (primMetaEquality m m')
-  ... | false = return false
+  ... | false = return nothing
   h1 m (valueCmp _ _ t@(var x args@(y ∷ ys)) (meta m' (_ ∷ _))) | true
-    = do
-         typeError {A = ⊤} (termErr t ∷ strErr "a5" ∷ [])
-         unify (meta m' []) (var x (take (length args - 2) args))
-         return true
+    = return (just (var x (take (length args - 1) args)))
   h1 m (valueCmp _ _ t@(con c args@(y ∷ ys)) (meta m' (_ ∷ _))) | true
-    = do
-         typeError {A = ⊤} (termErr t ∷ strErr "a6" ∷ [])
-         unify (meta m' []) (con c (take (length args - 2) args))
-         return true
+    = return (just (con c (take (length args - 1) args)))
   h1 m (valueCmp _ _ t@(def f args@(y ∷ ys)) (meta m' (_ ∷ _))) | true
-    = do
-         typeError {A = ⊤} (termErr t ∷ strErr "a7" ∷ [])
-         unify (meta m' []) (def f (take (length args - 2) args))
-         return true
+    = return (just (def f (take (length args - 1) args)))
   h1 m (valueCmp _ _ t@(pat-lam cs args@(y ∷ ys)) (meta m' (_ ∷ _))) | true
-    = do
-         typeError {A = ⊤} (termErr t ∷ strErr "a8" ∷ [])
-         unify (meta m' []) (pat-lam cs (take (length args - 2) args))
-         return true
+    = return (just (pat-lam cs (take (length args - 1) args)))
   h1 m (valueCmp _ _ t (meta m' (_ ∷ _))) | true
-    = do
-         typeError {A = ⊤} (termErr (lam hidden (abs "wₘ" (h4 t 0))) ∷ [])
-         unify (meta m' []) (lam hidden (abs "wₘ" (h4 t 0)))
-         return true
-  h1 _ unsupported = return false
+    = return (just (lam hidden (abs "wₘ" (h4 t 0))))
+  h1 _ unsupported = return nothing
   h1 _ _ = typeError (strErr "Invalid constraint." ∷ []) 
 
   h3 : Term → TC (Maybe Meta)
   h3 (lam hidden (abs _ (meta m args))) = return (just m)
-  --      extendContext (arg (arg-info hidden relevant) (quoteTerm World)) (typeError (showCtx args))
   h3 (lam hidden (abs _ t)) = return nothing
   h3 t = typeError (termErr t ∷ [])
 
@@ -192,22 +154,16 @@ ihs hole =
   do
      delayMacro
      typ ← inferType hole
-     typeError {A = ⊤} (termErr typ ∷ [])
-     nhole ← checkType hole typ
---     typeError {A = ⊤} (termErr nhole ∷ [])
+     nhole ← checkType hole typ -- We use this to have agda introduce a lambda with a hidden argument.
      tm ← h3 nhole
      case tm of
        λ { nothing → return tt -- The meta has already being solved.
          ; (just m) → do
---                         typ ← inferType (var 3 [])
-  --                       nhole ← checkType (meta m []) (agda-sort (set (var 4 [])))
-    --                     typ ← inferType (nhole)
-      --                   typeError {A = ⊤} (termErr nhole ∷ [])
-            --             unify (meta m (arg (arg-info hidden relevant) (var 4 []) ∷ [])) (var 3 [])
---                         mtype ← inferType (meta m [])
---                         typeError {A = ⊤} (termErr mtype ∷ [])
                          cs ← getConstraintsMentioning (m ∷ [])
-                         h2 cs (h1 m)
+                         r ← h2 cs (h1 m)
+                         case r of
+                           λ { nothing → return tt -- The meta might have already being solved.
+                             ; (just x) → unify hole x}
                          }
 
 
