@@ -159,8 +159,7 @@ private
     = do
          unify (meta m' (take (length margs - 1) margs)) (lam hidden (abs "wₘ" (h4 t 0)))
          return true
-  h1 _ unsupported = return false
-  h1 _ _ = typeError (strErr "Invalid constraint." ∷ []) 
+  h1 _ _ = return false
 
   h3 : Term → TC (Maybe Meta)
   h3 (lam hidden (abs _ (meta m args))) = return (just m)
@@ -187,53 +186,68 @@ ihs hole =
 
 private
 
-  h13 : List (Closure Constraint) → (Constraint → TC (Maybe Term)) → TC (Maybe Term)
-  h13 [] f = return nothing 
-  h13 (closure _ x ∷ xs) f = do
-      v ← f x
+  h13 : List (Closure Constraint) → (Constraint → TC Bool) → TC ⊤
+  h13 [] f = return tt
+  h13 (closure ctx x ∷ xs) f = do
+      v ← inContext ctx (f x)
       case v of
-        λ { nothing → h13 xs f
-          ; (just t) → return (just t) }
+        λ { false → h13 xs f
+          ; true  → return tt }
 
+
+
+  h12 : Meta → Meta → Constraint → TC Bool
+  h12 m mf (valueCmp _ _ (meta _ _) (meta _ _)) = return false
+  h12 m mf (valueCmp _ _ (meta m' _) t) with (primMetaEquality m m')
+  ... | false = return false
+  h12 m mf (valueCmp _ _ (meta m' margs) (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x args@(_ ∷ _ ∷ _)) ∷ []))) | true
+    = do
+         unify (meta mf (take (length margs - 2) margs)) (var x (take (length args - 2) args))
+         return true
+  h12 m mf (valueCmp _ _ (meta m' margs) (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c args@(_ ∷ _ ∷ _)) ∷ []))) | true
+    = do
+         unify (meta mf (take (length margs - 2) margs)) (con c (take (length args - 2) args))
+         return true
+  h12 m mf (valueCmp _ _ (meta m' margs) (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f args@(_ ∷ _ ∷ _)) ∷ []))) | true
+    = do
+         unify (meta mf (take (length margs - 2) margs)) (def f (take (length args - 2) args))
+         return true
+  h12 m mf (valueCmp _ _ (meta m' margs) (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs args@(_ ∷ _ ∷ _)) ∷ []))) | true
+    = do
+         unify (meta mf (take (length margs - 2) margs)) (pat-lam cs (take (length args - 2) args))
+         return true
+  h12 m mf (valueCmp _ _ (meta m' _) _) | true
+    = return false
+  h12 m mf (valueCmp _ _ t (meta m' _)) with (primMetaEquality m m')
+  ... | false = return false
+  h12 m mf (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x args@(_ ∷ _ ∷ _)) ∷ [])) (meta m' margs)) | true
+    = do
+         unify (meta mf (take (length margs - 2) margs)) (var x (take (length args - 2) args))
+         return true
+  h12 m mf (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c args@(_ ∷ _ ∷ _)) ∷ [])) (meta m' margs)) | true
+    = do
+         unify (meta mf (take (length margs - 2) margs)) (con c (take (length args - 2) args))
+         return true
+  h12 m mf (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f args@(_ ∷ _ ∷ _)) ∷ [])) (meta m' margs)) | true
+    = do
+         unify (meta mf (take (length margs - 2) margs)) (def f (take (length args - 2) args))
+         return true
+  h12 m mf (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs args@(_ ∷ _ ∷ _)) ∷ [])) (meta m' margs)) | true
+    = do
+         unify (meta mf (take (length margs - 2) margs)) (pat-lam cs (take (length args - 2) args))
+         return true
+  h12 m mf (valueCmp _ _ _ (meta m' _)) | true
+    = return false
+  h12 _ _ _ = return false
+
+
+  h14 : Term → TC Meta
+  h14 (meta m _) = return m
+  h14 _ = typeError (strErr "This is a HL5 library error. Report this." ∷ [])
 
   h11 : Term → Maybe Meta
-  h11 (lam _ (abs _ (lam _ (abs _ (con _ (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ (arg _ (meta m _)) ∷ [])))))) = just m
+  h11 (lam _ (abs _ (lam _ (abs _ f@(con _ (_ ∷ _ ∷ _ ∷ _ ∷ _ ∷ (arg _ (meta m _)) ∷ [])))))) = just m
   h11 v = nothing
-
-  h12 : Constraint → TC (Maybe Term)
-  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x []) ∷ [])))
-    = return (just (var x []))
-  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c []) ∷ [])))
-    = return (just (con c []))
-  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f []) ∷ [])))
-    = return (just (def f []))
-  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs []) ∷ [])))
-    = return (just (pat-lam cs []))
-  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x []) ∷ [])) (meta _ _))
-    = return (just (var x []))
-  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c []) ∷ [])) (meta _ _))
-    = return (just (con c []))
-  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f []) ∷ [])) (meta _ _))
-    = return (just (def f []))
-  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs []) ∷ [])) (meta _ _))
-    = return (just (pat-lam cs []))
-  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x args@(y ∷ ys)) ∷ [])))
-    = return (just (var x (take (length args - 2) args)))
-  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c args@(y ∷ ys)) ∷ [])))
-    = return (just (con c (take (length args - 2) args)))
-  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f args@(y ∷ ys)) ∷ [])))
-    = return (just (def f (take (length args - 2) args)))
-  h12 (valueCmp _ _ (meta _ _) (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs args@(y ∷ ys)) ∷ [])))
-    = return (just (pat-lam cs (take (length args - 2) args)))
-  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (var x args@(y ∷ ys)) ∷ [])) (meta _ _))
-    = return (just (var x (take (length args - 2) args)))
-  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (con c args@(y ∷ ys)) ∷ [])) (meta _ _))
-    = return (just (con c (take (length args - 2) args)))
-  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (def f args@(y ∷ ys)) ∷ [])) (meta _ _))
-    = return (just (def f (take (length args - 2) args)))
-  h12 (valueCmp _ _ (def _ (_ ∷ _ ∷ _ ∷ arg _ (pat-lam cs args@(y ∷ ys)) ∷ [])) (meta _ _))
-    = return (just (pat-lam cs (take (length args - 2) args)))
-  h12 _ = return nothing
 
 ifs : Term → TC ⊤
 ifs hole =
@@ -242,13 +256,9 @@ ifs hole =
      typ ← inferType hole
      nhole ← checkType hole typ
      case (h11 nhole) of
-      λ { nothing → do
-                       unify hole nhole -- ???
+      λ { nothing → return tt -- Probably the function has already been found.
         ; (just m) →
              do
+               om ← h14 hole
                cs ← getConstraintsMentioning (m ∷ [])
-               mt ← h13 cs h12
-               case mt of
-                 λ { nothing → return tt -- The meta has already being solved,
-                                         -- (probably because of an old constraint.)
-                   ; (just t) → unify hole t}}
+               h13 cs (h12 m om)}

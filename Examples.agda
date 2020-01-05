@@ -15,6 +15,16 @@ open import Data.Unit
 open import Data.String
 open import Data.Bool
 
+private
+  variable
+    α : Level
+
+End : (A : Set α) → ∀ w → HSet {α}
+End A w = ! w ! ○ ⟨ A ⟩ → ○ ⟨ ⊤ ⟩
+  
+end : ∀ A w → ⟦ End {α} A w ⟧
+end A w t = ↓ (t >>= λ _ → return tt)
+
 
 -- Hello World.
 
@@ -41,15 +51,11 @@ module HelloWorld where
          nm ← ↓ v
          return ("Hello " ++ nm)
   
-  End : ∀ w → HSet
-  End w = ! w ! ○ ⟨ String ⟩ → ○ ⟨ ⊤ ⟩
   
-  end : ∀ w → ⟦ End w ⟧
-  end w t = ↓ (t >>= λ _ → return tt)
-  
-  system : ⟦( ! Bob ! (Hello Tom) → ! Tom ! Name → ! Env ! End Tom → ! Env ! ○ ⟨ ⊤ ⟩ )⟧
+  system : ⟦( ! Bob ! (Hello Tom) → ! Tom ! Name → ! Env ! End String Tom → ! Env ! ○ ⟨ ⊤ ⟩ )⟧
   system hnm hl end
     = end (↓ (hnm hl))
+
 
 -- I am at your command.
 
@@ -66,15 +72,15 @@ data What : Set where
 GiveMeS : ∀ w → HSet
 GiveMeS w = ! w ! ⟨ What ⟩ → ○ ⟨ Set ⟩
 
-giveMeS : ∀ w → ⟦ GiveMeS w ⟧
-giveMeS w q
-  = do
-      case q of
-        λ { aNum → return Nat
-          ; aString → return String}
+giveMeS : ∀ w → ⟦ GiveMeS w ⟧′
+giveMeS w aNum = return Nat
+giveMeS w aString = return String
 
 GiveMe : ∀ w → HSet
 GiveMe w = (what : ! w ! ○ ⟨ What ⟩) → ○ₛ (↓ what >>= giveMeS w)
 
-giveMe : ∀ w → ⟦ GiveMe w ⟧
-giveMe w v = _>>=2_ (↓ v) {!!}
+giveMe : ∀ w → ⟦ GiveMe w ⟧′
+giveMe w v = (↓ v) >>=ᵈ λ { aNum → return 3
+                          ; aString → return "I can only give you my word."}
+
+
